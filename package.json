@@ -1,0 +1,58 @@
+{
+  "name": "image-history",
+  "version": "0.0.1",
+  "description": "记录 DOM 树中图片的增减",
+  "main": "dist/index.min.js",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.min.js",
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development webpack --watch",
+    "build": "cross-env NODE_ENV=production webpack"
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "keywords": [
+    "MutationObserver",
+    "Image History",
+    "wangeditor"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:clinfc/image-history.git"
+  },
+  "author": "翠林 <1962109568@qq.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/clinfc/image-history/issues"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.11.6",
+    "@babel/core": "^7.11.6",
+    "@babel/preset-env": "^7.11.5",
+    "@babel/preset-typescript": "^7.10.4",
+    "autoprefixer": "^10.0.0",
+    "babel-loader": "^8.1.0",
+    "clean-webpack-plugin": "^3.0.0",
+    "concurrently": "^5.3.0",
+    "cross-env": "^7.0.2",
+    "css-loader": "^4.3.0",
+    "dart-sass": "^1.25.0",
+    "lodash": "^4.17.20",
+    "nodemon": "^2.0.4",
+    "postcss": "^8.0.2",
+    "postcss-loader": "^4.0.2",
+    "sass": "^1.26.11",
+    "sass-loader": "^10.0.2",
+    "style-loader": "^1.2.1",
+    "ts-loader": "^8.0.4",
+    "typescript": "^4.0.3",
+    "url-loader": "^4.1.0",
+    "webpack": "^4.44.2",
+    "webpack-cli": "^3.3.12",
+    "webpack-dev-server": "^3.11.0",
+    "webpack-merge": "^5.1.4"
+  },
+  "dependencies": {}
+}
