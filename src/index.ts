@@ -8,6 +8,7 @@
  * eg：editor.imgs = new ImageHistory(editor.$textElem.elems[0])
  */
 export default class ImageHistory {
+    protected target: Element | null
     /**
      * 监听器
      */
@@ -21,7 +22,8 @@ export default class ImageHistory {
     /**
      * @param target 被监听的 HTMLElement 节点，这里指 wangEditor 的编辑区根节点
      */
-    constructor(protected target: Element) {
+    constructor(target: Element) {
+        this.target = target
         this.observer = new MutationObserver((mutations) => {
             mutations.forEach((record) => {
                 if (record.type == 'childList') {
@@ -104,6 +106,7 @@ export default class ImageHistory {
      */
     public destory() {
         this.observer.disconnect()
-        this.clear()
+        this.data.clear()
+        this.target = null
     }
 }

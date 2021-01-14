@@ -1,5 +1,5 @@
 export default class ImageHistory {
-    protected target: Element;
+    protected target: Element | null;
     private observer;
     private data;
     constructor(target: Element);
