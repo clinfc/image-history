@@ -13,7 +13,7 @@ npm install image-history
 
 ### script
 
-当前并未发布 npm 包，直接引入 dist/index.min.js 文件即可
+直接引入 dist/index.min.js 文件即可
 
 ```html
 <script src="image-history/dist/index.min.js"></script>
