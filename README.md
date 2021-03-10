@@ -40,7 +40,9 @@ npm install image-history
 `listener`|`Object`|自定义监听配置|
 `customFilter`|`Function`|自定义验证函数|
 `customFilters`|`Array`|由自定义验证函数构成的数组|
-`defaultFilter`|`Boolean`|是否启用内置验证规则（`!/^(blob:.+;base64:|data:)/`）|`true`
+`defaultFilter`|`Boolean`|是否启用内置验证规则|`true`
+
+> 内置过滤规则：`!/^(blob:.+;base64:|data:)/`
 
 ##### `eg`：`new ImageHistory(root)`
 ```js
