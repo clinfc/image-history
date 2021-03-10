@@ -56,7 +56,7 @@ const imageHistory = new ImageHistory(target)
 ##### `eg`：`new ImageHistory(root, listener)`
 ```js
 // 添加自定义图片监听规则
-const imageHistory = new  ImageHistory(edit.$textElem.elems[0], {
+const imageHistory = new  ImageHistory(target, {
     // nodeName: [attribute, attribute]
     video: ['poster'],  // 监听视频的封面图
 })
