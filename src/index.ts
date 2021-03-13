@@ -2,6 +2,17 @@
  * @protected 媒体文件（image）监控
  */
 
+/*
+1、初始化时建立镜像，作为多频次链接是否为原始链接的依据
+2、新增的多频次链接未被删尽时仍被认为是新增链接
+3、需要区分链接为新增或删除
+3、新增的链接是镜像中存在的链接时，不被认定为新增链接
+
+名词解释：
+    多频图片：同一链接多次出现
+    镜像数据：被绑定的根节点下某一时刻的图片数据。比如二次编辑文章时需要构建镜像数据作为后续图片增减的依据。
+*/
+
 type Listener = {
     [propName: string]: Set<string>
 }
@@ -15,7 +26,7 @@ export type Targets = {
 /**
  * 统计链接及同一个链接出现的次数
  */
-export type Statistics = {
+export type Mirroring = {
     [propName: string]: number
 }
 
@@ -25,16 +36,6 @@ function attributeFilter(listener: Listener) {
         filter.push(...row)
     })
     return filter
-}
-
-function initConfig(listener: Listener): MutationObserverInit {
-    return {
-        subtree: true,
-        childList: true,
-        attributes: true,
-        attributeOldValue: true,
-        attributeFilter: attributeFilter(listener),
-    }
 }
 
 /**
@@ -55,42 +56,16 @@ function isValidAttr(listener: Listener, node: Node, attr: string | null) {
     return attr && node instanceof Element && listener[node.nodeName] instanceof Set && listener[node.nodeName].has(attr)
 }
 
-function verify(node: Node, listener: Listener, changed?: Map<string, boolean>, value?: boolean) {
+function verify(node: Node, listener: Listener) {
     const images: Set<string> = new Set()
     if (isValidElem(listener, node)) {
         listener[node.nodeName].forEach(attr => {
             if ((node as Element).hasAttribute(attr)) {
-                // changed.set((node as Element).getAttribute(attr) as string, value)
                 images.add((node as Element).getAttribute(attr) as string)
             }
         })
     }
     return [...images]
-}
-
-/**
- * 统计链接及同一个链接出现的次数
- * @param root 根节点
- * @param listener 监听的属性
- */
-function statistics(root: Element, listener: Listener) {
-    const temp: Statistics = {}
-    Object.keys(listener).forEach(nodeName => {
-        const nodes = Array.from(root.querySelectorAll(nodeName))
-        nodes.forEach(el => {
-            listener[nodeName].forEach(attr => {
-                if (el.hasAttribute(attr)) {
-                    const img = el.getAttribute(attr) as string
-                    if (temp[img]) {
-                        temp[img] += 1
-                    } else {
-                        temp[img] = 1
-                    }
-                }
-            })
-        })
-    })
-    return temp
 }
 
 /**
@@ -112,9 +87,9 @@ export default class ImageHistory {
     #observer: MutationObserver
 
     /**
-     * 记录原始图片
+     * 根节点下某一刻的图片镜像数据
      */
-    #primordial: Statistics
+    #mirroring: Mirroring
 
     /**
      * image 标签的变化记录。boolean 值表示 image 标签当前的状态，为 true 表示存在于文档中；为 false 表示该 image 标签被删除。
@@ -135,6 +110,13 @@ export default class ImageHistory {
     }
 
     /**
+     * 当前实例的图片镜像数据
+     */
+    public get mirroring() {
+        return { ...this.#mirroring }
+    }
+
+    /**
      * 监听的节点类型及该节点对应监听的 attribute 名
      */
     public get listener() {
@@ -143,13 +125,6 @@ export default class ImageHistory {
             temp[nodeName] = [...attrs]
         })
         return temp
-    }
-
-    /**
-     * 统计初始化时就存在的图片链接以及对应的次数
-     */
-    public get primordial() {
-        return Object.entries(this.#primordial)
     }
 
     /**
@@ -176,7 +151,7 @@ export default class ImageHistory {
         // 内置规则（非 base64/URL.createObjectURL 图片链接）
         if (filter !== false && defFilter) {
             this.#rules.push(function (value: string) {
-                return !/^(blob:.+;base64:|data:)/.test(value)
+                return !/^(data:|blob:)/.test(value)
             })
         }
         // 用户自定义规则
@@ -186,8 +161,7 @@ export default class ImageHistory {
             this.#rules.push(filter)
         }
 
-        // 记录当前已存在的图片链接以及同一链接出现的次数
-        this.#primordial = statistics(this.#root, this.#listener)
+        this.#mirroring = this.statistics()
 
         // 初始化监听器
         this.#observer = new MutationObserver(mutations => {
@@ -226,23 +200,53 @@ export default class ImageHistory {
         })
 
         // 绑定监听
-        this.#observer.observe(root, initConfig(this.#listener))
+        this.#observer.observe(root, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeOldValue: true,
+            attributeFilter: attributeFilter(this.#listener),
+        })
     }
 
     /**
-     * 统计当前的图片链接以及对应的链接次数
+     * 返回所有的历史记录信息
      */
-    public statistics() {
-        return Object.entries(statistics(this.#root, this.#listener))
-    }
+    public all() {
+        // 镜像图片
+        const old = this.#mirroring
 
-    /**
-     * 被删除图片链接的数组集合
-     */
-    public deleted() {
-        return this.all()
-            .filter(row => row.type === 'deleted')
-            .map(row => row.image)
+        // 统计当前的图片
+        const now = this.statistics()
+
+        // 生成所有的图片历史记录信息
+        const temp: { image: string; type: 'inserted' | 'deleted' }[] = []
+        this.#changed.forEach((status, img) => {
+            // 新添加的图片 && 非镜像中的图片
+            if (status && !old[img]) {
+                temp.push({
+                    image: img,
+                    type: 'inserted',
+                })
+            }
+            // 被删除的图片
+            else {
+                // 该图片被删尽
+                if (!now[img]) {
+                    temp.push({
+                        image: img,
+                        type: 'deleted',
+                    })
+                } else if (!old[img]) {
+                    // 图片未被删尽（多频图片） && 非镜像中的图片
+                    temp.push({
+                        image: img,
+                        type: 'inserted',
+                    })
+                }
+            }
+        })
+        return temp
     }
 
     /**
@@ -255,25 +259,44 @@ export default class ImageHistory {
     }
 
     /**
-     * 返回所有的历史记录信息
+     * 被删除图片链接的数组集合
      */
-    public all() {
-        // 统计当前的图片链接数据
-        const now = statistics(this.#root, this.#listener)
-        // 统计同一张图片链接被全部删除的原始图片
-        const deleted = Object.keys(this.#primordial).filter(img => !now[img])
-        // 生成所有的图片历史记录信息
-        const temp: { image: string; type: 'inserted' | 'deleted' }[] = []
-        this.#changed.forEach((status, img) => {
-            // 非原始图片 || 是原始图片，但是全部被删除了
-            if (!this.#primordial[img] || deleted.includes(img)) {
-                temp.push({
-                    image: img,
-                    type: status ? 'inserted' : 'deleted',
+    public deleted() {
+        return this.all()
+            .filter(row => row.type === 'deleted')
+            .map(row => row.image)
+    }
+
+    /**
+     * 统计当前的图片链接以及对应的链接次数
+     */
+    public statistics() {
+        const temp: Mirroring = {}
+        Object.keys(this.#listener).forEach(nodeName => {
+            const nodes = Array.from(this.#root.querySelectorAll(nodeName))
+            nodes.forEach(el => {
+                this.#listener[nodeName].forEach(attr => {
+                    if (el.hasAttribute(attr)) {
+                        const img = el.getAttribute(attr) as string
+                        if (temp[img]) {
+                            temp[img] += 1
+                        } else {
+                            temp[img] = 1
+                        }
+                    }
                 })
-            }
+            })
         })
         return temp
+    }
+
+    /**
+     * 重新构建镜像数据（将此刻的图片数据作为后续的判断依据，且曾经的历史记录将被清除）
+     */
+    public rebuild() {
+        this.#mirroring = this.statistics()
+        this.clear()
+        return this.mirroring
     }
 
     /**
@@ -290,7 +313,7 @@ export default class ImageHistory {
         this.#observer.disconnect()
         this.#changed.clear()
         this.#listener = {}
-        this.#primordial = {}
+        this.#mirroring = {}
     }
 
     /**
@@ -298,6 +321,11 @@ export default class ImageHistory {
      * @param img 图片链接
      */
     public valid(img: string) {
-        return this.#rules.reduce((ar, fn) => ar && fn(img), true)
+        for (let fn of this.#rules) {
+            if (!fn(img)) {
+                return false
+            }
+        }
+        return true
     }
 }
