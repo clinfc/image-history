@@ -1,6 +1,6 @@
 {
     "name": "image-history",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "description": "记录 DOM 树中图片的增减",
     "main": "dist/index.min.js",
     "types": "dist/index.d.ts",
